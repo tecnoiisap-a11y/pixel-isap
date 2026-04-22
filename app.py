@@ -131,11 +131,15 @@ if st.session_state.inicio:
         )
         try:
             with st.spinner("🤖 Píxel pensando..."):
-                model = genai.GenerativeModel(st.session_state.modelo_activo)
+                # Intentamos con el modelo Pro que es el más estable en la red
+                model = genai.GenerativeModel('gemini-pro')
                 response = model.generate_content(f"{contexto}\n Alumno: {prompt}")
-                respuesta = response.text
+                
+                # Si la respuesta está vacía o bloqueada
+                if not response.text:
+                    respuesta = "Che, no puedo responder eso. ¡Preguntame algo de tecnología!"
+                else:
+                    respuesta = response.text
                 
                 pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
                 texto_placeholder.info(f"Píxel: {respuesta}")
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
