@@ -22,15 +22,15 @@ if not api_keys:
 if "api_index" not in st.session_state:
     st.session_state.api_index = 0
 
+# Orden de modelos optimizado para llaves nuevas (v1beta)
 MODELOS = [
+    "gemini-2.0-flash-lite", 
     "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b"
+    "gemini-1.5-flash"
 ]
 
 def inicializar_cliente():
-    """Crea el cliente con la llave actual y la versión v1beta para evitar 404."""
+    """Conexión limpia sin forzar parámetros que den 404."""
     key_actual = api_keys[st.session_state.api_index]
     return genai.Client(
         api_key=key_actual,
@@ -44,37 +44,47 @@ if "modelo_activo" not in st.session_state:
     st.session_state.modelo_activo = MODELOS[0]
 
 # --- 3. LÓGICA DE COMUNICACIÓN (FALLBACK) ---
+
 def llamar_gemini(prompt, contexto):
+    """Esta función intenta conectar con los modelos uno por uno."""
     contenido = f"{contexto}\nAlumno: {prompt}"
     
     for modelo in MODELOS:
         try:
+            # Intento de envío a Google
             response = st.session_state.client.models.generate_content(
                 model=modelo,
                 contents=contenido
             )
+            # Si tiene éxito, guardamos cuál modelo funcionó y devolvemos el texto
             st.session_state.modelo_activo = modelo
             return response.text
+            
         except Exception as e:
             err_msg = str(e).lower()
-            # Si es error de cuota (429) y tenemos otra llave, rotamos
+            
+            # Si el error es de cuota (429) y tenemos una segunda llave, rotamos
             if "429" in err_msg and len(api_keys) > 1:
                 st.session_state.api_index = (st.session_state.api_index + 1) % len(api_keys)
                 st.session_state.client = inicializar_cliente()
                 st.toast(f"🔄 Rotando a Llave {st.session_state.api_index + 1}...")
                 try:
-                    # Reintento rápido con la nueva llave
+                    # Reintento inmediato con la nueva llave
                     res = st.session_state.client.models.generate_content(model=modelo, contents=contenido)
                     return res.text
-                except: pass
+                except:
+                    pass # Si falla la segunda llave también, sigue al siguiente modelo
             
-            # Si es error 404 o cualquier otro, probamos el siguiente modelo
+            # Si el error es 404 (modelo no encontrado), simplemente pasa al siguiente modelo
             continue
             
-    raise Exception("Todos los modelos están saturados. Reintentá en un minuto.")
+    # Si recorre todos los modelos y ninguno funcionó, lanza este error final
+    raise Exception("No se pudo conectar con los servidores de Google. Verificá tus llaves API o esperá un minuto.")
 
-@st.cache_data(ttl=3600, show_spinner=False)
+# Comentamos el caché temporalmente para que pruebes las llaves nuevas "en vivo"
+# @st.cache_data(ttl=3600, show_spinner=False)
 def respuesta_cacheada(p, c):
+    """Llama a la función anterior (por ahora sin memoria para testear)."""
     return llamar_gemini(p, c)
 
 # --- 4. ESTILOS Y CARGA DE RECURSOS ---
@@ -155,14 +165,16 @@ if st.session_state.inicio:
         texto_placeholder.empty()
         prompt_norm = prompt.strip().lower()
         
-        status = st.status("🤖 Píxel pensando...")
+        status = st.status("🤖 Píxel conectando con Google...")
         try:
             contexto = "Sos Píxel, docente de TIC. Estilo socrático, breve y motivador."
-            res = respuesta_cacheada(prompt_norm, contexto)
+            # Llamamos directo a la función de comunicación
+            res = llamar_gemini(prompt_norm, contexto)
             status.update(label="¡Listo!", state="complete", expanded=False)
             
             pixel_placeholder.markdown(render_pixel(res, animar=True), unsafe_allow_html=True)
             texto_placeholder.info(f"Píxel: {res}")
         except Exception as e:
-            status.update(label="❌ Aviso", state="error", expanded=True)
-            st.error(str(e))
+            status.update(label="❌ Error de conexión", state="error", expanded=True)
+            st.error(f"Detalle técnico: {str(e)}")
+            st.warning("Si las llaves son nuevas, revisá que no tengan espacios extras en los Secrets.")
