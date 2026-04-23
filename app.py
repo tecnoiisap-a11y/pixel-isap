@@ -123,7 +123,6 @@ if st.session_state.inicio:
 
         status = st.status("🤖 Píxel trabajando...")
         try:
-            try:
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
                 contents=f"{contexto}\n Alumno: {prompt}"
