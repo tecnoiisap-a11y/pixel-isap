@@ -5,24 +5,24 @@ import os
 from gtts import gTTS      # Requiere 'gTTS' en requirements.txt
 from google import genai   # Requiere 'google-genai' en requirements.txt
 
-# --- 1. CONFIGURACIÓN DE MODELO ---
+# --- 1. CONFIGURACIÓN DE MODELO (VERSIÓN 2026) ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
 except Exception:
-    st.error("Falta la GEMINI_API_KEY en los Secrets.")
+    st.error("Error: No se encontró la API KEY en los Secrets.")
     st.stop()
 
 if "client" not in st.session_state:
-    # EL TRUCO: Forzamos la versión v1 de forma explícita aquí
-    from google.genai import Client
+    # Usamos la nueva forma de declarar el cliente
+    # Esto evita que la librería busque versiones beta por error
     st.session_state.client = genai.Client(
         api_key=API_KEY,
         http_options={'api_version': 'v1'}
     )
 
 if "modelo_activo" not in st.session_state:
-    # Usamos el nombre sin el prefijo "models/" para que la v1 lo tome directo
-    st.session_state.modelo_activo = "gemini-1.5-flash"
+    # Este es el modelo de vanguardia para este año
+    st.session_state.modelo_activo = "gemini-2.0-flash"
 
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 # --- 2. ESTILOS CSS ---
@@ -117,25 +117,40 @@ else:
 # --- 6. LÓGICA DE CHAT SOCRÁTICO ---
 if st.session_state.inicio:
     if prompt := st.chat_input("Escribí tu consulta aquí..."):
+        # Limpiamos el texto de bienvenida cuando el usuario escribe
         texto_placeholder.empty()
         
-        contexto = "Sos Píxel, profesor de Tecnología. Responde breve y socrático."
+        # El "alma" de Píxel: Instrucciones de comportamiento
+        contexto = (
+            "Sos Píxel, un asistente pedagógico experto en Tecnología para alumnos de 12 a 14 años. "
+            "Tu estilo es socrático: no des la respuesta servida, hacé preguntas que guíen al alumno "
+            "a pensar. Usá un lenguaje cercano, amable y motivador."
+        )
 
-        status = st.status("🤖 Píxel trabajando...")
+        status = st.status("🤖 Píxel está pensando...")
         try:
+            # Llamada al modelo usando el cliente configurado en la Sección 1
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
                 contents=f"{contexto}\n Alumno: {prompt}"
             )
-            # ... el resto sigue igual
             
             respuesta = response.text
             status.update(label="¡Listo!", state="complete", expanded=False)
             
-            # Renderizar respuesta
+            # 1. Mostramos la cara de Píxel con su animación
             pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
+            
+            # 2. Mostramos el texto de la respuesta
             texto_placeholder.info(f"Píxel: {respuesta}")
 
+            # Opcional: Imprimir en consola para nosotros ver qué pasa
+            print(f"DEBUG - Alumno: {prompt} | Píxel: {respuesta[:50]}...")
+
         except Exception as e:
-            status.update(label="❌ Error de conexión", state="error", expanded=True)
-            st.error(f"Píxel está teniendo problemas técnicos: {str(e)}")
+            # Si el error es el 429 (Cuota), damos un mensaje más humano
+            status.update(label="❌ Algo pasó", state="error", expanded=True)
+            if "429" in str(e):
+                st.warning("Píxel está un poco saturado de preguntas. Esperemos un minutito y probamos de nuevo.")
+            else:
+                st.error(f"Error técnico: {str(e)}")
