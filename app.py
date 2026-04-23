@@ -17,8 +17,8 @@ if "client" not in st.session_state:
     st.session_state.client = genai.Client(api_key=API_KEY)
 
 if "modelo_activo" not in st.session_state:
-    # CAMBIO CLAVE: Usamos Gemini 2.0 Flash para evitar el error 404
-    st.session_state.modelo_activo = "gemini-2.0-flash"
+    # Cambiamos a la versión 1.5 que suele tener más margen de uso gratuito
+    st.session_state.modelo_activo = "gemini-1.5-flash"
 
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 # --- 2. ESTILOS CSS ---
