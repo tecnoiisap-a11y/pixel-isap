@@ -8,11 +8,12 @@ from google import genai   # Requiere 'google-genai' en requirements.txt
 # --- 1. CONFIGURACIÓN DE MODELO ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
-except:
-    st.error("Falta la clave API en los Secretos de Streamlit.")
+except Exception:
+    st.error("Falta la GEMINI_API_KEY en los Secrets de Streamlit.")
     st.stop()
 
 if "client" not in st.session_state:
+    # Definimos la versión aquí adentro de http_options
     st.session_state.client = genai.Client(
         api_key=API_KEY,
         http_options={'api_version': 'v1'}
@@ -20,7 +21,6 @@ if "client" not in st.session_state:
 
 if "modelo_activo" not in st.session_state:
     st.session_state.modelo_activo = "gemini-1.5-flash"
-
 # Esta línea de page_config SIEMPRE debe ir después de los imports
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 # --- 2. ESTILOS CSS ---
@@ -117,24 +117,23 @@ if st.session_state.inicio:
     if prompt := st.chat_input("Escribí tu consulta aquí..."):
         texto_placeholder.empty()
         
-        contexto = (
-            "Sos Píxel, profesor de Tecnología del ISAP. "
-            "Responde de forma socrática, breve y en voseo argentino."
-        )
+        contexto = "Sos Píxel, profesor de Tecnología. Responde breve y socrático."
 
-        status = st.status("🤖 Píxel conectando con la nueva API...")
+        status = st.status("🤖 Píxel trabajando...")
         try:
-            # Usamos la nueva librería que instalamos
+            # LLAMADA LIMPIA: Solo el modelo y el contenido
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
-                contents=f"{contexto}\n Alumno: {prompt}",
-                config={'api_version': 'v1'} # <-- ESTO ES EL MATAMOSCAS FINAL
+                contents=f"{contexto}\n Alumno: {prompt}"
             )
             
             respuesta = response.text
             status.update(label="¡Listo!", state="complete", expanded=False)
+            
+            # Mostrar respuesta de Píxel
             pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
             texto_placeholder.info(f"Píxel: {respuesta}")
 
         except Exception as e:
+            status.update(label="❌ Error", state="error", expanded=True)
             st.error(f"Error técnico: {str(e)}")
