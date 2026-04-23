@@ -32,15 +32,41 @@ if "ultimo_request" not in st.session_state:
 
 # --- 2. FUNCIÓN CON RETRY + FALLBACK ---
 def llamar_gemini(prompt, contexto, max_reintentos=3):
-    """Llama a Gemini con retry exponencial y fallback de modelo."""
-    
-    # Cooldown mínimo entre requests (3 segundos)
     ahora = time.time()
     espera = ahora - st.session_state.ultimo_request
     if espera < 3:
         time.sleep(3 - espera)
 
     contenido = f"{contexto}\nAlumno: {prompt}"
+    errores_log = []  # <-- guardamos TODOS los errores reales
+    
+    for modelo in MODELOS:
+        for intento in range(max_reintentos):
+            try:
+                response = st.session_state.client.models.generate_content(
+                    model=modelo,
+                    contents=contenido
+                )
+                st.session_state.modelo_activo = modelo
+                st.session_state.ultimo_request = time.time()
+                return response.text
+                
+            except Exception as e:
+                error_str = str(e)
+                errores_log.append(f"[{modelo} intento {intento+1}]: {error_str}")  # <-- log real
+                
+                if "429" in error_str:
+                    espera_retry = (2 ** intento) * 5
+                    time.sleep(espera_retry)
+                    continue
+                elif "404" in error_str:
+                    break
+                else:
+                    errores_log.append(f"Error desconocido en {modelo}: {error_str}")
+                    break
+    
+    # Lanzamos el log completo como excepción para verlo
+    raise Exception("LOG COMPLETO:\n" + "\n".join(errores_log))
     
     for modelo in MODELOS:
         for intento in range(max_reintentos):
