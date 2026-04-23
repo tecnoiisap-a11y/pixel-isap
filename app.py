@@ -137,4 +137,4 @@ if st.session_state.inicio:
             texto_placeholder.info(f"Píxel: {respuesta}")
 
         except Exception as e:
-            st.error(f"Error técnico: {str(e)}"
+            st.error(f"Error técnico: {str(e)}")
