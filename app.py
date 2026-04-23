@@ -13,14 +13,12 @@ except Exception:
     st.stop()
 
 if "client" not in st.session_state:
-    # Definimos la versión aquí adentro de http_options
-    st.session_state.client = genai.Client(
-        api_key=API_KEY,
-        http_options={'api_version': 'v1'}
-    )
+    # Quitamos el http_options para evitar el conflicto del 404
+    st.session_state.client = genai.Client(api_key=API_KEY)
 
 if "modelo_activo" not in st.session_state:
-    st.session_state.modelo_activo = "gemini-1.5-flash"
+    # Usamos el nombre técnico completo que la v1 reconoce sí o sí
+    st.session_state.modelo_activo = "models/gemini-1.5-flash"
 # Esta línea de page_config SIEMPRE debe ir después de los imports
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 # --- 2. ESTILOS CSS ---
@@ -121,7 +119,7 @@ if st.session_state.inicio:
 
         status = st.status("🤖 Píxel trabajando...")
         try:
-            # LLAMADA LIMPIA: Solo el modelo y el contenido
+            # Llamada directa al grano
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
                 contents=f"{contexto}\n Alumno: {prompt}"
