@@ -5,19 +5,23 @@ import os
 from gtts import gTTS      # Requiere 'gTTS' en requirements.txt
 from google import genai   # Requiere 'google-genai' en requirements.txt
 
-# --- 1. CONFIGURACIÓN DE MODELO (VERSIÓN 2026) ---
+# --- 1. CONFIGURACIÓN DE MODELO ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
 except Exception:
-    st.error("Error: No se encontró la API KEY en los Secrets.")
+    st.error("Falta la GEMINI_API_KEY en los Secrets.")
     st.stop()
 
 if "client" not in st.session_state:
-    # Eliminamos cualquier forzado de versión, dejamos que el SDK decida
-    st.session_state.client = genai.Client(api_key=API_KEY)
+    # EL TRUCO: Forzamos la versión v1 de forma explícita aquí
+    from google.genai import Client
+    st.session_state.client = genai.Client(
+        api_key=API_KEY,
+        http_options={'api_version': 'v1'}
+    )
 
 if "modelo_activo" not in st.session_state:
-    # Cambiamos a la versión 1.5 que suele tener más margen de uso gratuito
+    # Usamos el nombre sin el prefijo "models/" para que la v1 lo tome directo
     st.session_state.modelo_activo = "gemini-1.5-flash"
 
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
@@ -119,11 +123,12 @@ if st.session_state.inicio:
 
         status = st.status("🤖 Píxel trabajando...")
         try:
-            # Llamada directa sin configuraciones extra que causen errores
+            try:
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
                 contents=f"{contexto}\n Alumno: {prompt}"
             )
+            # ... el resto sigue igual
             
             respuesta = response.text
             status.update(label="¡Listo!", state="complete", expanded=False)
