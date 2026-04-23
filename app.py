@@ -193,9 +193,16 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
+            
+            # DIAGNÓSTICO COMPLETO - mostramos todo para saber qué pasa
+            st.error(f"🔍 Error completo: {error_str}")
+            st.code(error_str)  # lo muestra en un bloque copiable
+            
             if "429" in error_str or "saturados" in error_str:
                 st.warning("😅 Píxel necesita un descanso. Esperá 1-2 minutos y volvé a intentar.")
             elif "404" in error_str:
                 st.warning("🔧 El modelo no está disponible. Recargá la página.")
+            elif "quota" in error_str.lower():
+                st.warning("📊 Se agotó la cuota diaria. Intentá mañana o cambiá la API key.")
             else:
-                st.error(f"Error técnico: {error_str}")
+                st.warning("⚠️ Error desconocido — copiá el texto de arriba y compartilo.")
