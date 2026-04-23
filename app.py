@@ -123,22 +123,18 @@ if st.session_state.inicio:
         )
 
         status = st.status("🤖 Píxel conectando con la nueva API...")
-        try:
-            status.write("🧠 Generando respuesta...")
-            
-            # Usamos la nueva forma de generar contenido
+       try:
+            # Usamos la nueva librería que instalamos
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
-                contents=f"{contexto}\n Alumno: {prompt}"
+                contents=f"{contexto}\n Alumno: {prompt}",
+                config={'api_version': 'v1'} # <-- ESTO ES EL MATAMOSCAS FINAL
             )
             
             respuesta = response.text
             status.update(label="¡Listo!", state="complete", expanded=False)
-            
             pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
             texto_placeholder.info(f"Píxel: {respuesta}")
 
         except Exception as e:
-            status.update(label="❌ Error", state="error", expanded=True)
-            st.error(f"Error técnico: {str(e)}")
-            print(f"DEBUG: {e}")
+            st.error(f"Error técnico: {str(e)}"
