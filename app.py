@@ -8,16 +8,57 @@ from google import genai
 # --- 1. CONFIGURACIÓN INICIAL (DEBE IR PRIMERO) ---
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 
-# --- 2. GESTIÓN DE API KEYS ---
+# --- 2. GESTIÓN DE API KEYS Y VARIABLES DE SESIÓN ---
+
+# 2.1. Carga de llaves desde los Secrets
 api_keys = []
 if "GEMINI_API_KEY" in st.secrets:
     api_keys.append(st.secrets["GEMINI_API_KEY"])
 if "GEMINI_API_KEY_2" in st.secrets:
     api_keys.append(st.secrets["GEMINI_API_KEY_2"])
 
+# Si no hay llaves, detenemos la app con un aviso claro
 if not api_keys:
-    st.error("🚨 ATENCIÓN: Streamlit no detecta ninguna API KEY en los Secrets.")
+    st.error("🚨 Error: No se detectan API Keys en los Secrets de Streamlit. Verificá la configuración.")
     st.stop()
+
+# 2.2. Inicialización de variables en el Session State (Evita el AttributeError)
+if "api_index" not in st.session_state:
+    st.session_state.api_index = 0
+
+# Definimos la lista de modelos disponibles
+MODELOS = [
+    "gemini-2.0-flash-lite", 
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b"
+]
+
+if "modelo_activo" not in st.session_state:
+    st.session_state.modelo_activo = MODELOS[0]
+
+# 2.3. Definición del cliente de Google AI
+def inicializar_cliente():
+    """Configura el cliente usando la llave actual y la versión v1beta."""
+    try:
+        key_actual = api_keys[st.session_state.api_index]
+        return genai.Client(
+            api_key=key_actual,
+            http_options={'api_version': 'v1beta'}
+        )
+    except Exception as e:
+        st.error(f"Error al inicializar el cliente: {e}")
+        return None
+
+# 2.4. Creación del cliente en la sesión
+if "client" not in st.session_state or st.session_state.client is None:
+    st.session_state.client = inicializar_cliente()
+
+# 2.5. Variables de control de flujo
+if "inicio" not in st.session_state:
+    st.session_state.inicio = False
+if "saludo_dado" not in st.session_state:
+    st.session_state.saludo_dado = False
 # --- 3. LÓGICA DE COMUNICACIÓN (FALLBACK) ---
 
 def llamar_gemini(prompt, contexto):
