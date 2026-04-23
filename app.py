@@ -5,29 +5,24 @@ import base64
 import time
 import os
 
-# --- 1. CONFIGURACIÓN SEGURA ---
+
+# --- 1. CONFIGURACIÓN DE MODELO (NUEVA LIBRERÍA) ---
+from google import genai
+import streamlit as st
+
+# PEGÁ TU NUEVA API KEY AQUÍ
+# En lugar de poner la clave escrita, le pedimos que la busque en los "secretos"
 import os
+API_KEY = st.secrets["GEMINI_API_KEY"]
 
-# Si está en la nube (Streamlit Cloud) usa Secrets, si está en tu PC usa tu clave directa
-if "GEMINI_API_KEY" in st.secrets:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-else:
-    API_KEY = "AIzaSyCXU9qFWGYvVoDzfTuR7FbHQ1eei1AoHNo" # Poné tu clave acá para probar local
-
-genai.configure(api_key=API_KEY)
-def obtener_modelo_valido():
-    try:
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                return m.name
-    except: pass
-    return "gemini-1.5-flash"
+# Creamos el cliente con la nueva librería
+if "client" not in st.session_state:
+    st.session_state.client = genai.Client(api_key=API_KEY)
 
 if "modelo_activo" not in st.session_state:
-    st.session_state.modelo_activo = obtener_modelo_valido()
+    st.session_state.modelo_activo = "gemini-1.5-flash"
 
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
-
 # --- 2. ESTILOS CSS ---
 st.markdown("""
     <style>
@@ -123,23 +118,27 @@ if st.session_state.inicio:
         texto_placeholder.empty()
         
         contexto = (
-            "Sos Píxel, profesor de Tecnología del ISAP en Orán. "
-            "ORDEN: 1. Responde directo usando el Módulo 1. "
-            "2. Relaciona con los 3 Pilares (Humano, Problema, Objeto). "
-            "3. Termina con un desafío o pregunta para el alumno. "
-            "Usa voseo argentino, máximo 30 palabras."
+            "Sos Píxel, profesor de Tecnología del ISAP. "
+            "Responde de forma socrática, breve y en voseo argentino."
         )
+
+        status = st.status("🤖 Píxel conectando con la nueva API...")
         try:
-            with st.spinner("🤖 Píxel pensando..."):
-                # Intentamos con el modelo Pro que es el más estable en la red
-                model = genai.GenerativeModel('gemini-pro')
-                response = model.generate_content(f"{contexto}\n Alumno: {prompt}")
-                
-                # Si la respuesta está vacía o bloqueada
-                if not response.text:
-                    respuesta = "Che, no puedo responder eso. ¡Preguntame algo de tecnología!"
-                else:
-                    respuesta = response.text
-                
-                pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
-                texto_placeholder.info(f"Píxel: {respuesta}")
+            status.write("🧠 Generando respuesta...")
+            
+            # Usamos la nueva forma de generar contenido
+            response = st.session_state.client.models.generate_content(
+                model=st.session_state.modelo_activo,
+                contents=f"{contexto}\n Alumno: {prompt}"
+            )
+            
+            respuesta = response.text
+            status.update(label="¡Listo!", state="complete", expanded=False)
+            
+            pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
+            texto_placeholder.info(f"Píxel: {respuesta}")
+
+        except Exception as e:
+            status.update(label="❌ Error", state="error", expanded=True)
+            st.error(f"Error técnico: {str(e)}")
+            print(f"DEBUG: {e}")
