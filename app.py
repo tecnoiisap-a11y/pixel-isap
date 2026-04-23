@@ -2,21 +2,17 @@ import streamlit as st
 import base64
 import time
 import os
-from gtts import gTTS
-from google import genai  # <--- Esta es la única de Google que necesitás
+from gtts import gTTS      # Requiere 'gTTS' en requirements.txt
+from google import genai   # Requiere 'google-genai' en requirements.txt
 
-# --- 1. CONFIGURACIÓN DE MODELO (MODO SEGURO) ---
-
-# Buscamos la clave en los secretos (esto ya lo configuraste en la web)
+# --- 1. CONFIGURACIÓN DE MODELO ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
-except Exception:
+except:
     st.error("Falta la clave API en los Secretos de Streamlit.")
     st.stop()
 
-# Creamos el cliente con la nueva librería
 if "client" not in st.session_state:
-    # Agregamos la versión v1 para que no use la v1beta por error
     st.session_state.client = genai.Client(
         api_key=API_KEY,
         http_options={'api_version': 'v1'}
