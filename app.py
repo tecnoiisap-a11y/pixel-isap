@@ -123,7 +123,7 @@ if st.session_state.inicio:
         )
 
         status = st.status("🤖 Píxel conectando con la nueva API...")
-       try:
+        try:
             # Usamos la nueva librería que instalamos
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
