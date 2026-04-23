@@ -1,27 +1,31 @@
 import streamlit as st
-import google.generativeai as genai
-from gtts import gTTS
 import base64
 import time
 import os
+from gtts import gTTS
+from google import genai  # <--- Esta es la única de Google que necesitás
 
+# --- 1. CONFIGURACIÓN DE MODELO (MODO SEGURO) ---
 
-# --- 1. CONFIGURACIÓN DE MODELO (NUEVA LIBRERÍA) ---
-from google import genai
-import streamlit as st
-
-# PEGÁ TU NUEVA API KEY AQUÍ
-# En lugar de poner la clave escrita, le pedimos que la busque en los "secretos"
-import os
-API_KEY = st.secrets["GEMINI_API_KEY"]
+# Buscamos la clave en los secretos (esto ya lo configuraste en la web)
+try:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    st.error("Falta la clave API en los Secretos de Streamlit.")
+    st.stop()
 
 # Creamos el cliente con la nueva librería
 if "client" not in st.session_state:
-    st.session_state.client = genai.Client(api_key=API_KEY)
+    # Agregamos la versión v1 para que no use la v1beta por error
+    st.session_state.client = genai.Client(
+        api_key=API_KEY,
+        http_options={'api_version': 'v1'}
+    )
 
 if "modelo_activo" not in st.session_state:
     st.session_state.modelo_activo = "gemini-1.5-flash"
 
+# Esta línea de page_config SIEMPRE debe ir después de los imports
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 # --- 2. ESTILOS CSS ---
 st.markdown("""
