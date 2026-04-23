@@ -8,41 +8,16 @@ from google import genai
 # --- 1. CONFIGURACIÓN INICIAL (DEBE IR PRIMERO) ---
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 
-# --- 2. GESTIÓN DE API KEYS Y CLIENTE ---
-api_keys = [
-    st.secrets.get("GEMINI_API_KEY"),
-    st.secrets.get("GEMINI_API_KEY_2")
-]
-api_keys = [k for k in api_keys if k]
+# --- 2. GESTIÓN DE API KEYS ---
+api_keys = []
+if "GEMINI_API_KEY" in st.secrets:
+    api_keys.append(st.secrets["GEMINI_API_KEY"])
+if "GEMINI_API_KEY_2" in st.secrets:
+    api_keys.append(st.secrets["GEMINI_API_KEY_2"])
 
 if not api_keys:
-    st.error("Error: No se encontraron API Keys en los Secrets.")
+    st.error("🚨 ATENCIÓN: Streamlit no detecta ninguna API KEY en los Secrets.")
     st.stop()
-
-if "api_index" not in st.session_state:
-    st.session_state.api_index = 0
-
-# Orden de modelos optimizado para llaves nuevas (v1beta)
-MODELOS = [
-    "gemini-2.0-flash-lite", 
-    "gemini-2.0-flash",
-    "gemini-1.5-flash"
-]
-
-def inicializar_cliente():
-    """Conexión limpia sin forzar parámetros que den 404."""
-    key_actual = api_keys[st.session_state.api_index]
-    return genai.Client(
-        api_key=key_actual,
-        http_options={'api_version': 'v1beta'}
-    )
-
-if "client" not in st.session_state:
-    st.session_state.client = inicializar_cliente()
-
-if "modelo_activo" not in st.session_state:
-    st.session_state.modelo_activo = MODELOS[0]
-
 # --- 3. LÓGICA DE COMUNICACIÓN (FALLBACK) ---
 
 def llamar_gemini(prompt, contexto):
