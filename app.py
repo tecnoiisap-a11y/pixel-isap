@@ -257,6 +257,7 @@ if st.session_state.inicio:
                 st.error(f"🔴 Las {len(API_KEYS)} API keys están agotadas por hoy.")
                 st.warning("⏰ La cuota se resetea a las **21:00 hs Argentina** (00:00 UTC). Volvé esta noche o mañana temprano.")
                 st.info("💡 **Para el docente:** Podés agregar más keys en los Secrets de Streamlit como `GEMINI_API_KEY_4`, etc.")
+                st.code(error_str)
             elif "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
                 st.warning("⏳ Demasiadas consultas seguidas. Esperá 1-2 minutos e intentá de nuevo.")
             elif "404" in error_str or "NOT_FOUND" in error_str:
