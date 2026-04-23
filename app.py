@@ -5,21 +5,21 @@ import os
 from gtts import gTTS      # Requiere 'gTTS' en requirements.txt
 from google import genai   # Requiere 'google-genai' en requirements.txt
 
-# --- 1. CONFIGURACIÓN DE MODELO ---
+# --- 1. CONFIGURACIÓN DE MODELO (VERSIÓN 2026) ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
 except Exception:
-    st.error("Falta la GEMINI_API_KEY en los Secrets de Streamlit.")
+    st.error("Error: No se encontró la API KEY en los Secrets.")
     st.stop()
 
 if "client" not in st.session_state:
-    # Quitamos el http_options para evitar el conflicto del 404
+    # Eliminamos cualquier forzado de versión, dejamos que el SDK decida
     st.session_state.client = genai.Client(api_key=API_KEY)
 
 if "modelo_activo" not in st.session_state:
-    # Usamos el nombre técnico completo que la v1 reconoce sí o sí
-    st.session_state.modelo_activo = "models/gemini-1.5-flash"
-# Esta línea de page_config SIEMPRE debe ir después de los imports
+    # CAMBIO CLAVE: Usamos Gemini 2.0 Flash para evitar el error 404
+    st.session_state.modelo_activo = "gemini-2.0-flash"
+
 st.set_page_config(page_title="Píxel - ISAP", page_icon="🤖", layout="wide")
 # --- 2. ESTILOS CSS ---
 st.markdown("""
@@ -119,7 +119,7 @@ if st.session_state.inicio:
 
         status = st.status("🤖 Píxel trabajando...")
         try:
-            # Llamada directa al grano
+            # Llamada directa sin configuraciones extra que causen errores
             response = st.session_state.client.models.generate_content(
                 model=st.session_state.modelo_activo,
                 contents=f"{contexto}\n Alumno: {prompt}"
@@ -128,10 +128,10 @@ if st.session_state.inicio:
             respuesta = response.text
             status.update(label="¡Listo!", state="complete", expanded=False)
             
-            # Mostrar respuesta de Píxel
+            # Renderizar respuesta
             pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
             texto_placeholder.info(f"Píxel: {respuesta}")
 
         except Exception as e:
-            status.update(label="❌ Error", state="error", expanded=True)
-            st.error(f"Error técnico: {str(e)}")
+            status.update(label="❌ Error de conexión", state="error", expanded=True)
+            st.error(f"Píxel está teniendo problemas técnicos: {str(e)}")
