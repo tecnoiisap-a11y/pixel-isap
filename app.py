@@ -12,6 +12,7 @@ try:
     API_KEYS = [
         st.secrets["GEMINI_API_KEY"],
         st.secrets["GEMINI_API_KEY_2"],
+        st.secrets["GEMINI_API_KEY_3"],
     ]
 except Exception:
     st.error("❌ Error: No se encontraron las API KEYs en los Secrets de Streamlit.")
