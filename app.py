@@ -34,11 +34,11 @@ if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
         api_key=OPENROUTER_KEY,
     )
 
-# Modelos gratuitos de OpenRouter en orden de preferencia
 MODELOS_OPENROUTER = [
     "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
-    "google/gemma-3-27b-it:free",
+    "deepseek/deepseek-r1:free",
+    "google/gemma-3-12b-it:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
 ]
 
 # Gemini como fallback
