@@ -3,48 +3,67 @@ import base64
 import time
 import os
 from gtts import gTTS
-from google import genai
+from openai import OpenAI
 
 # ============================================================
-# 1. CONFIGURACIÓN — TRIPLE API KEY CON ROTACIÓN AUTOMÁTICA
+# 1. CONFIGURACIÓN — OPENROUTER PRINCIPAL + GEMINI FALLBACK
 # ============================================================
 
-# Cargamos cada key por separado — si falta alguna la saltea sin romper todo
-API_KEYS = []
+# Cargamos OpenRouter (principal)
+try:
+    OPENROUTER_KEY = st.secrets["OPENROUTER_API_KEY"]
+except Exception:
+    OPENROUTER_KEY = None
+
+# Cargamos Gemini como fallback
+GEMINI_KEYS = []
 for nombre_key in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]:
     try:
-        API_KEYS.append(st.secrets[nombre_key])
+        GEMINI_KEYS.append(st.secrets[nombre_key])
     except Exception:
-        pass  # esa key no está en Secrets, la ignoramos
+        pass
 
-if len(API_KEYS) == 0:
-    st.error("❌ Error: No se encontró ninguna API KEY en los Secrets de Streamlit.")
+if not OPENROUTER_KEY and len(GEMINI_KEYS) == 0:
+    st.error("❌ Error: No se encontró ninguna API KEY en los Secrets.")
     st.stop()
 
-# Modelos en orden de preferencia (v1beta soporta todos)
-MODELOS = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash-8b-latest",
+# Cliente OpenRouter
+if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
+    st.session_state.openrouter_client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=OPENROUTER_KEY,
+    )
+
+# Modelos gratuitos de OpenRouter en orden de preferencia
+MODELOS_OPENROUTER = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-3-27b-it:free",
 ]
 
-# Un cliente por cada key — se reinicia si cambia la cantidad de keys
-if "clientes" not in st.session_state or len(st.session_state.clientes) != len(API_KEYS):
-    st.session_state.clientes = [
+# Gemini como fallback
+if "gemini_clientes" not in st.session_state and len(GEMINI_KEYS) > 0:
+    from google import genai
+    st.session_state.gemini_clientes = [
         genai.Client(api_key=k, http_options={'api_version': 'v1beta'})
-        for k in API_KEYS
+        for k in GEMINI_KEYS
     ]
 
-if "modelo_activo" not in st.session_state:
-    st.session_state.modelo_activo = MODELOS[0]
+MODELOS_GEMINI = [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash-preview-04-17",
+    "gemini-1.5-flash-latest",
+]
 
+if "modelo_activo" not in st.session_state:
+    st.session_state.modelo_activo = MODELOS_OPENROUTER[0]
 if "ultimo_request" not in st.session_state:
     st.session_state.ultimo_request = 0
-
-if "key_index" not in st.session_state:
-    st.session_state.key_index = 0
+if "gemini_key_index" not in st.session_state:
+    st.session_state.gemini_key_index = 0
+if "proveedor_activo" not in st.session_state:
+    st.session_state.proveedor_activo = "OpenRouter"
 
 # ============================================================
 # 2. ESTILOS CSS
@@ -137,52 +156,94 @@ def render_pixel(texto=None, animar=False):
     return f'<div class="pixel-container"><img src="data:image/png;base64,{img}" class="pixel-img"></div>'
 
 # ============================================================
-# 5. FUNCIÓN PRINCIPAL — LLAMADA A GEMINI CON ROTACIÓN DE KEYS
+# 5. FUNCIONES DE LLAMADA A LA API
 # ============================================================
+def llamar_openrouter(prompt, contexto):
+    """Llama a OpenRouter con modelos gratuitos."""
+    for modelo in MODELOS_OPENROUTER:
+        try:
+            response = st.session_state.openrouter_client.chat.completions.create(
+                model=modelo,
+                messages=[
+                    {"role": "system", "content": contexto},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=200,
+            )
+            st.session_state.modelo_activo = modelo
+            st.session_state.proveedor_activo = "OpenRouter"
+            return response.choices[0].message.content
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "rate" in error_str.lower():
+                continue  # prueba el siguiente modelo
+            else:
+                raise e
+    raise Exception("OPENROUTER_AGOTADO")
+
 def llamar_gemini(prompt, contexto):
-    ahora = time.time()
-    espera = ahora - st.session_state.ultimo_request
-    if espera < 3:
-        time.sleep(3 - espera)
+    """Llama a Gemini como fallback."""
+    if not hasattr(st.session_state, 'gemini_clientes') or len(st.session_state.gemini_clientes) == 0:
+        raise Exception("GEMINI_NO_DISPONIBLE")
 
     contenido = f"{contexto}\nAlumno: {prompt}"
     errores_log = []
-    num_keys = len(st.session_state.clientes)
+    num_keys = len(st.session_state.gemini_clientes)
 
-    for modelo in MODELOS:
+    for modelo in MODELOS_GEMINI:
         for ki in range(num_keys):
-            key_idx = (st.session_state.key_index + ki) % num_keys
-            cliente = st.session_state.clientes[key_idx]
-
+            key_idx = (st.session_state.gemini_key_index + ki) % num_keys
+            cliente = st.session_state.gemini_clientes[key_idx]
             try:
                 response = cliente.models.generate_content(
                     model=modelo,
                     contents=contenido
                 )
-                st.session_state.key_index = key_idx
+                st.session_state.gemini_key_index = key_idx
                 st.session_state.modelo_activo = modelo
-                st.session_state.ultimo_request = time.time()
+                st.session_state.proveedor_activo = "Gemini"
                 return response.text
-
             except Exception as e:
                 error_str = str(e)
-                errores_log.append(f"[key{key_idx+1}][{modelo}]: {error_str[:150]}")
-
-                if "429" in error_str or "quota" in error_str.lower() or "RESOURCE_EXHAUSTED" in error_str:
-                    continue  # key agotada -> probamos la siguiente
+                errores_log.append(f"[key{key_idx+1}][{modelo}]: {error_str[:100]}")
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    continue
                 elif "404" in error_str or "NOT_FOUND" in error_str:
-                    break     # modelo no existe -> siguiente modelo
+                    break
                 else:
-                    break     # error desconocido
+                    break
 
-    raise Exception("TODAS_LAS_KEYS_AGOTADAS:\n" + "\n".join(errores_log))
+    raise Exception("TODAS_AGOTADAS:\n" + "\n".join(errores_log))
+
+def llamar_ia(prompt, contexto):
+    """Intenta OpenRouter primero, luego Gemini como fallback."""
+    # Cooldown de 2 segundos
+    ahora = time.time()
+    espera = ahora - st.session_state.ultimo_request
+    if espera < 2:
+        time.sleep(2 - espera)
+
+    try:
+        if OPENROUTER_KEY and "openrouter_client" in st.session_state:
+            resultado = llamar_openrouter(prompt, contexto)
+            st.session_state.ultimo_request = time.time()
+            return resultado
+    except Exception as e:
+        if "OPENROUTER_AGOTADO" not in str(e):
+            raise e
+        # OpenRouter agotado, caemos a Gemini
+
+    # Fallback a Gemini
+    resultado = llamar_gemini(prompt, contexto)
+    st.session_state.ultimo_request = time.time()
+    return resultado
 
 # ============================================================
 # 6. CACHÉ DE RESPUESTAS
 # ============================================================
 @st.cache_data(ttl=3600, show_spinner=False)
 def respuesta_cacheada(prompt_normalizado, contexto):
-    return llamar_gemini(prompt_normalizado, contexto)
+    return llamar_ia(prompt_normalizado, contexto)
 
 # ============================================================
 # 7. INTERFAZ PRINCIPAL
@@ -190,12 +251,15 @@ def respuesta_cacheada(prompt_normalizado, contexto):
 st.markdown("<h2 style='text-align: center;'>🤖 Píxel: Tu Auxiliar</h2>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray;'>ISAP N° 8090 - Orán</p>", unsafe_allow_html=True)
 
-# Info de estado — muestra cuántas keys están cargadas
-col_info1, col_info2 = st.columns(2)
+# Info de estado
+col_info1, col_info2, col_info3 = st.columns(3)
 with col_info1:
     st.caption(f"🧠 Modelo: `{st.session_state.modelo_activo}`")
 with col_info2:
-    st.caption(f"🔑 Keys cargadas: `{len(API_KEYS)}` | Activa: `#{st.session_state.key_index + 1}`")
+    st.caption(f"⚡ Proveedor: `{st.session_state.proveedor_activo}`")
+with col_info3:
+    keys_total = (1 if OPENROUTER_KEY else 0) + len(GEMINI_KEYS)
+    st.caption(f"🔑 Keys cargadas: `{keys_total}`")
 
 with st.expander("🚀 GUÍA DE MISIONES (Para alumnos)"):
     st.markdown("""
@@ -254,13 +318,13 @@ if st.session_state.inicio:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
 
-            if "TODAS_LAS_KEYS_AGOTADAS" in error_str:
-                st.error(f"🔴 Las {len(API_KEYS)} API keys están agotadas por hoy.")
-                st.warning("⏰ La cuota se resetea a las **21:00 hs Argentina** (00:00 UTC). Volvé esta noche o mañana temprano.")
-                st.info("💡 **Para el docente:** Podés agregar más keys en los Secrets de Streamlit como `GEMINI_API_KEY_4`, etc.")
-            elif "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                st.warning("⏳ Demasiadas consultas seguidas. Esperá 1-2 minutos e intentá de nuevo.")
-            elif "404" in error_str or "NOT_FOUND" in error_str:
-                st.warning("🔧 Modelo temporalmente no disponible. Recargá la página.")
+            if "TODAS_AGOTADAS" in error_str:
+                st.error("🔴 Todos los servicios están agotados por hoy.")
+                st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
+                st.info("💡 Esperá 1-2 minutos y volvé a intentar — OpenRouter debería recuperarse solo.")
+            elif "429" in error_str:
+                st.warning("⏳ Demasiadas consultas seguidas. Esperá 1 minuto e intentá de nuevo.")
+            elif "404" in error_str:
+                st.warning("🔧 Modelo no disponible. Recargá la página.")
             else:
                 st.error(f"⚠️ Error inesperado: {error_str}")
