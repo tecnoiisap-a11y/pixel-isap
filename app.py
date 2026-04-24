@@ -34,11 +34,15 @@ if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
         api_key=OPENROUTER_KEY,
     )
 
-# Modelos gratuitos de OpenRouter en orden de preferencia
+# Modelos gratuitos de OpenRouter — actualizados abril 2026
 MODELOS_OPENROUTER = [
     "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
     "google/gemma-3-27b-it:free",
+    "google/gemma-3-12b-it:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "qwen/qwen3-8b:free",
+    "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
+    "deepseek/deepseek-v3-base:free",
 ]
 
 # Gemini como fallback
@@ -159,7 +163,7 @@ def render_pixel(texto=None, animar=False):
 # 5. FUNCIONES DE LLAMADA A LA API
 # ============================================================
 def llamar_openrouter(prompt, contexto):
-    errores_or = []
+    """Llama a OpenRouter con modelos gratuitos."""
     for modelo in MODELOS_OPENROUTER:
         try:
             response = st.session_state.openrouter_client.chat.completions.create(
@@ -174,9 +178,10 @@ def llamar_openrouter(prompt, contexto):
             st.session_state.proveedor_activo = "OpenRouter"
             return response.choices[0].message.content
         except Exception as e:
-            errores_or.append(f"[{modelo}]: {str(e)[:150]}")
+            error_str = str(e)
+            # Para cualquier error (404, 429, etc.) probamos el siguiente modelo
             continue
-    raise Exception("OPENROUTER_AGOTADO:\n" + "\n".join(errores_or))
+    raise Exception("OPENROUTER_AGOTADO")
 
 def llamar_gemini(prompt, contexto):
     """Llama a Gemini como fallback."""
@@ -286,7 +291,7 @@ if not st.session_state.inicio:
         st.rerun()
 else:
     if not st.session_state.saludo_dado:
-        saludo = "Sistema activado... ¡Hola! Soy Píxel 👾, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
+        saludo = "Sistema activado... ¡Hola! Soy Píxel, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
         pixel_placeholder.markdown(render_pixel(saludo, animar=True), unsafe_allow_html=True)
         texto_placeholder.info(saludo)
         st.session_state.saludo_dado = True
@@ -336,7 +341,14 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-            # Mostrar TODO sin filtrar
-            st.code(error_str)
 
-           
+            if "TODAS_AGOTADAS" in error_str:
+                st.error("🔴 Todos los servicios están agotados por hoy.")
+                st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
+                st.info("💡 Esperá 1-2 minutos y volvé a intentar — OpenRouter debería recuperarse solo.")
+            elif "429" in error_str:
+                st.warning("⏳ Demasiadas consultas seguidas. Esperá 1 minuto e intentá de nuevo.")
+            elif "404" in error_str:
+                st.warning("🔧 Modelo no disponible. Recargá la página.")
+            else:
+                st.error(f"⚠️ Error inesperado: {error_str}")
