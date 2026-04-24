@@ -175,10 +175,8 @@ def llamar_openrouter(prompt, contexto):
             return response.choices[0].message.content
         except Exception as e:
             error_str = str(e)
-            if "429" in error_str or "rate" in error_str.lower():
-                continue  # prueba el siguiente modelo
-            else:
-                raise e
+            # Para cualquier error (404, 429, etc.) probamos el siguiente modelo
+            continue
     raise Exception("OPENROUTER_AGOTADO")
 
 def llamar_gemini(prompt, contexto):
@@ -335,7 +333,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-            st.code(error_str)  # <-- agregá esta línea
+
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
                 st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
