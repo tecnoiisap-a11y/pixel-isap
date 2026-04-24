@@ -314,7 +314,7 @@ if st.session_state.inicio:
             pixel_placeholder.markdown(render_pixel(respuesta, animar=True), unsafe_allow_html=True)
             texto_placeholder.info(f"Píxel: {respuesta}")
 
-       except Exception as e:
+        except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
             st.code(error_str)  # <-- agregá esta línea para ver el error real
