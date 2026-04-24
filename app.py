@@ -35,8 +35,8 @@ if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
     )
 
 MODELOS_OPENROUTER = [
+    "openrouter/auto",          # ← router automático gratuito
     "meta-llama/llama-3.3-70b-instruct:free",
-    "deepseek/deepseek-r1:free",
     "google/gemma-3-12b-it:free",
     "mistralai/mistral-small-3.1-24b-instruct:free",
 ]
@@ -159,8 +159,12 @@ def render_pixel(texto=None, animar=False):
 # 5. FUNCIONES DE LLAMADA A LA API
 # ============================================================
 def llamar_openrouter(prompt, contexto):
-    """Llama a OpenRouter con modelos gratuitos."""
-    for modelo in MODELOS_OPENROUTER:
+    modelos = [
+        "openrouter/auto",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemma-3-12b-it:free",
+    ]
+    for modelo in modelos:
         try:
             response = st.session_state.openrouter_client.chat.completions.create(
                 model=modelo,
@@ -175,8 +179,8 @@ def llamar_openrouter(prompt, contexto):
             return response.choices[0].message.content
         except Exception as e:
             error_str = str(e)
-            if "429" in error_str or "rate" in error_str.lower():
-                continue  # prueba el siguiente modelo
+            if "404" in error_str or "429" in error_str:
+                continue
             else:
                 raise e
     raise Exception("OPENROUTER_AGOTADO")
