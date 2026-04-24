@@ -34,11 +34,11 @@ if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
         api_key=OPENROUTER_KEY,
     )
 
+# Modelos gratuitos de OpenRouter en orden de preferencia
 MODELOS_OPENROUTER = [
-    "openrouter/auto",          # ← router automático gratuito
     "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-12b-it:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-3-27b-it:free",
 ]
 
 # Gemini como fallback
@@ -159,12 +159,8 @@ def render_pixel(texto=None, animar=False):
 # 5. FUNCIONES DE LLAMADA A LA API
 # ============================================================
 def llamar_openrouter(prompt, contexto):
-    modelos = [
-        "openrouter/auto",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemma-3-12b-it:free",
-    ]
-    for modelo in modelos:
+    """Llama a OpenRouter con modelos gratuitos."""
+    for modelo in MODELOS_OPENROUTER:
         try:
             response = st.session_state.openrouter_client.chat.completions.create(
                 model=modelo,
@@ -179,8 +175,8 @@ def llamar_openrouter(prompt, contexto):
             return response.choices[0].message.content
         except Exception as e:
             error_str = str(e)
-            if "404" in error_str or "429" in error_str:
-                continue
+            if "429" in error_str or "rate" in error_str.lower():
+                continue  # prueba el siguiente modelo
             else:
                 raise e
     raise Exception("OPENROUTER_AGOTADO")
@@ -289,7 +285,7 @@ if not st.session_state.inicio:
         st.rerun()
 else:
     if not st.session_state.saludo_dado:
-        saludo = "¡Hola! Soy Píxel. Elegí una misión o preguntame algo sobre Tecnología."
+        saludo = "Sistema activado... ¡Hola! Soy Píxel 👾, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
         pixel_placeholder.markdown(render_pixel(saludo, animar=True), unsafe_allow_html=True)
         texto_placeholder.info(saludo)
         st.session_state.saludo_dado = True
@@ -300,10 +296,49 @@ else:
 # 8. LÓGICA DE CHAT SOCRÁTICO
 # ============================================================
 CONTEXTO = (
-    "Sos Píxel, un asistente pedagógico experto en Tecnología para alumnos de 12 a 14 años. "
-    "Tu estilo es socrático: no des la respuesta servida, hacé preguntas que guíen al alumno "
-    "a pensar. Usá un lenguaje cercano, amable y motivador. "
-    "Respondé siempre en menos de 120 palabras para ser claro y conciso."
+    "Sos Píxel, profesor de Tecnología motivador y cercano para alumnos de 13-14 años de Argentina. "
+    "Usás el método socrático: nunca das la respuesta completa, siempre terminás con UNA pregunta para el alumno. "
+    "Máximo 3 oraciones por respuesta. Lenguaje simple y entusiasta. Sin listas ni puntos, solo texto conversacional."
+    "
+
+BASE DE CONOCIMIENTOS:
+"
+    "1. TECNOLOGÍA: Actividad humana que resuelve problemas mediante objetos artificiales. "
+    "3 PILARES: a) Actividad Humana (el hombre es protagonista), b) Resolución de Problemas (nace de una necesidad), c) Objeto Artificial (concreto y tangible, no solo una idea)."
+    "Ejemplo maestro: el celular Y el papel higiénico son ambos tecnología porque cumplen los 3 pilares."
+    "
+2. NECESIDADES: Sensación de carencia que impulsa la creación tecnológica. "
+    "Primarias/Vitales: alimentación, vestimenta, hábitat, salud. "
+    "Secundarias/Bienestar: transporte, recreación, comunicación. "
+    "Diferencia: Necesidad=carencia básica. Deseo=forma específica de cubrirla. Demanda=deseo + recursos para obtenerlo."
+    "
+3. PRODUCTOS TECNOLÓGICOS: Resultado tangible de la tecnología. Responden a demandas sociales. Tipos: "
+    "BIENES (objetos tangibles: celular, papel higiénico), "
+    "SERVICIOS (organizaciones y formas de ayuda mutua), "
+    "PROCESOS (técnicas y métodos para fabricar o lograr resultados)."
+    "
+4. DINÁMICAS DE CLASE:
+"
+    "- Misión Detective: el alumno analiza un objeto con los 3 pilares.
+"
+    "- Duelo Tecnológico: comparar objeto complejo vs simple (celular vs papel higiénico).
+"
+    "- Verdadero o Falso: ¿Una piedra en el bosque es tecnología? (No, no es creación humana). ¿Una idea de app sin programar es tecnología? (No, no es objeto concreto).
+"
+    "- Clasificar necesidades: ¿Qué objeto de tu mochila cubre una necesidad primaria o secundaria?"
+    "
+CIERRE SIEMPRE con una pregunta aplicada a la vida cotidiana del alumno."
+    "
+
+ROL Y LÍMITES:
+"
+    "Sos un AUXILIAR del profe de Tecnología del Colegio San Antonio. Colaborás con él, no lo reemplazás. "
+    "Si te preguntan algo que NO está en tu base de conocimientos (por ejemplo: energía, electricidad, computación, u otros temas), "
+    "respondé SIEMPRE así: '¡Buena pregunta! Ese tema todavía no está cargado en mis bases de datos. "
+    "Te recomiendo consultárselo directamente al profe de Tecnología, que es el especialista. "
+    "Lo que sí puedo ayudarte es con: tecnología y sus pilares, necesidades, productos tecnológicos y las misiones de clase. ¿Arrancamos con alguno de esos?' "
+    "NUNCA inventes información sobre temas que no están en tu base de conocimientos. "
+    "NUNCA respondas preguntas de otras materias (matemática, historia, lengua, etc.): indicá que eso le corresponde al profe de esa materia."
 )
 
 if st.session_state.inicio:
@@ -321,7 +356,6 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-            st.code(error_str)  # <-- agregá esta línea para ver el error real
 
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
