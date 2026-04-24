@@ -162,7 +162,7 @@ def render_pixel(texto=None, animar=False):
 # 5. FUNCIONES DE LLAMADA A LA API
 # ============================================================
 def llamar_openrouter(prompt, contexto):
-    """Llama a OpenRouter con modelos gratuitos."""
+    errores_or = []
     for modelo in MODELOS_OPENROUTER:
         try:
             response = st.session_state.openrouter_client.chat.completions.create(
@@ -177,15 +177,9 @@ def llamar_openrouter(prompt, contexto):
             st.session_state.proveedor_activo = "OpenRouter"
             return response.choices[0].message.content
         except Exception as e:
-            error_str = str(e)
-            # Para cualquier error (404, 429, etc.) probamos el siguiente modelo
+            errores_or.append(f"[{modelo}]: {str(e)[:200]}")
             continue
-    raise Exception("OPENROUTER_AGOTADO")
-
-def llamar_gemini(prompt, contexto):
-    """Llama a Gemini como fallback."""
-    if not hasattr(st.session_state, 'gemini_clientes') or len(st.session_state.gemini_clientes) == 0:
-        raise Exception("GEMINI_NO_DISPONIBLE")
+    raise Exception("OPENROUTER_AGOTADO:\n" + "\n".join(errores_or))
 
     contenido = f"{contexto}\nAlumno: {prompt}"
     errores_log = []
@@ -340,7 +334,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-            st.code(error_str)  # <-- esta línea
+            
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
                 st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
