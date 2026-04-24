@@ -36,13 +36,11 @@ if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
 
 # Modelos gratuitos de OpenRouter — actualizados abril 2026
 MODELOS_OPENROUTER = [
+    "openrouter/auto",  # elige automáticamente el mejor gratuito
     "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-27b-it:free",
     "google/gemma-3-12b-it:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
     "qwen/qwen3-8b:free",
     "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
-    "deepseek/deepseek-v3-base:free",
 ]
 
 # Gemini como fallback
@@ -341,7 +339,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-
+            st.code(error_str)
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
                 st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
