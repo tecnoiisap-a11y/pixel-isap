@@ -337,14 +337,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
+            # Mostrar TODO sin filtrar
+            st.code(error_str)
 
-            if "TODAS_AGOTADAS" in error_str:
-                st.error("🔴 Todos los servicios están agotados por hoy.")
-                st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
-                st.info("💡 Esperá 1-2 minutos y volvé a intentar — OpenRouter debería recuperarse solo.")
-            elif "429" in error_str:
-                st.warning("⏳ Demasiadas consultas seguidas. Esperá 1 minuto e intentá de nuevo.")
-            elif "404" in error_str:
-                st.warning("🔧 Modelo no disponible. Recargá la página.")
-            else:
-                st.error(f"⚠️ Error inesperado: {error_str}")
+           
