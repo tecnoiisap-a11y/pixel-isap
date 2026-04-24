@@ -159,7 +159,7 @@ def render_pixel(texto=None, animar=False):
 # 5. FUNCIONES DE LLAMADA A LA API
 # ============================================================
 def llamar_openrouter(prompt, contexto):
-    """Llama a OpenRouter con modelos gratuitos."""
+    errores_or = []
     for modelo in MODELOS_OPENROUTER:
         try:
             response = st.session_state.openrouter_client.chat.completions.create(
@@ -174,10 +174,9 @@ def llamar_openrouter(prompt, contexto):
             st.session_state.proveedor_activo = "OpenRouter"
             return response.choices[0].message.content
         except Exception as e:
-            error_str = str(e)
-            # Para cualquier error (404, 429, etc.) probamos el siguiente modelo
+            errores_or.append(f"[{modelo}]: {str(e)[:150]}")
             continue
-    raise Exception("OPENROUTER_AGOTADO")
+    raise Exception("OPENROUTER_AGOTADO:\n" + "\n".join(errores_or))
 
 def llamar_gemini(prompt, contexto):
     """Llama a Gemini como fallback."""
