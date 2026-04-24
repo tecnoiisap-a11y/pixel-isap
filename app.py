@@ -290,7 +290,7 @@ if not st.session_state.inicio:
         st.rerun()
 else:
     if not st.session_state.saludo_dado:
-        saludo = "Sistema activado... ¡Hola! Soy Píxel 👾, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
+        saludo = "Sistema activado... ¡Hola! Soy Píxel, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
         pixel_placeholder.markdown(render_pixel(saludo, animar=True), unsafe_allow_html=True)
         texto_placeholder.info(saludo)
         st.session_state.saludo_dado = True
@@ -340,7 +340,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-
+            st.code(error_str)  # <-- esta línea
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
                 st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
