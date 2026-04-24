@@ -34,13 +34,14 @@ if "openrouter_client" not in st.session_state and OPENROUTER_KEY:
         api_key=OPENROUTER_KEY,
     )
 
-# Modelos gratuitos de OpenRouter — actualizados abril 2026
+# Modelos gratuitos de OpenRouter — confirmados abril 2026
 MODELOS_OPENROUTER = [
-    "openrouter/auto",  # elige automáticamente el mejor gratuito
     "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
     "google/gemma-3-12b-it:free",
-    "qwen/qwen3-8b:free",
-    "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
+    "google/gemma-3-4b-it:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
 ]
 
 # Gemini como fallback
@@ -289,7 +290,7 @@ if not st.session_state.inicio:
         st.rerun()
 else:
     if not st.session_state.saludo_dado:
-        saludo = "Sistema activado... ¡Hola! Soy Píxel, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
+        saludo = "Sistema activado... ¡Hola! Soy Píxel 👾, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
         pixel_placeholder.markdown(render_pixel(saludo, animar=True), unsafe_allow_html=True)
         texto_placeholder.info(saludo)
         st.session_state.saludo_dado = True
@@ -339,7 +340,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-            st.code(error_str)
+
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
                 st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
