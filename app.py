@@ -221,20 +221,24 @@ def llamar_ia(prompt, contexto):
     if espera < 2:
         time.sleep(2 - espera)
 
+    openrouter_error = None
     try:
         if OPENROUTER_KEY and "openrouter_client" in st.session_state:
             resultado = llamar_openrouter(prompt, contexto)
             st.session_state.ultimo_request = time.time()
             return resultado
     except Exception as e:
-        if "OPENROUTER_AGOTADO" not in str(e):
-            raise e
-        # OpenRouter agotado, caemos a Gemini
+        openrouter_error = str(e)
+        # Cualquier error de OpenRouter -> caemos a Gemini
+        pass
 
     # Fallback a Gemini
-    resultado = llamar_gemini(prompt, contexto)
-    st.session_state.ultimo_request = time.time()
-    return resultado
+    try:
+        resultado = llamar_gemini(prompt, contexto)
+        st.session_state.ultimo_request = time.time()
+        return resultado
+    except Exception as gemini_error:
+        raise Exception("OPENROUTER: " + str(openrouter_error) + " | GEMINI: " + str(gemini_error))  # fixed
 
 # ============================================================
 # 6. CACHÉ DE RESPUESTAS
@@ -283,7 +287,7 @@ if not st.session_state.inicio:
         st.rerun()
 else:
     if not st.session_state.saludo_dado:
-        saludo = "Sistema activado... ¡Hola! Soy Píxel, el bot oficial del Colegio San Antonio de Padua. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
+        saludo = "Sistema activado... ¡Hola! Soy Píxel 👾, el bot oficial del Colegio San Antonio. Mi misión es ser el auxiliar del profe de Tecnología y ayudarte cuando lo necesites. ¿Tenés alguna duda o querés jugar a una misión?"
         pixel_placeholder.markdown(render_pixel(saludo, animar=True), unsafe_allow_html=True)
         texto_placeholder.info(saludo)
         st.session_state.saludo_dado = True
@@ -333,7 +337,7 @@ if st.session_state.inicio:
         except Exception as e:
             status.update(label="❌ Algo pasó", state="error", expanded=True)
             error_str = str(e)
-            st.code(error_str)  # <-- agregá esta línea
+
             if "TODAS_AGOTADAS" in error_str:
                 st.error("🔴 Todos los servicios están agotados por hoy.")
                 st.warning("⏰ La cuota de Gemini se resetea a las **21:00 hs Argentina**. OpenRouter se resetea cada minuto.")
